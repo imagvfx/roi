@@ -1,10 +1,9 @@
 # roi
 
-[![Build Status](https://travis-ci.com/studio2l/roi.svg?branch=master)](https://travis-ci.com/studio2l/roi)
-[![Go Report Card](https://goreportcard.com/badge/github.com/studio2l/roi)](https://goreportcard.com/report/github.com/studio2l/roi)
+roi는 vfx 파이프라인 관리를 위한 웹 앱입니다.
 
-
-roi는 2L의 새 파이프라인 서버이자, 첫번째 오픈소스 프로젝트입니다!
+원래 [studio2l](https://github.com/studio2l/roi)에서 오픈소스로 개발되었으나,
+회사 사정으로 개발이 중단되면서 imagvfx에서 이어받아 개발합니다.
 
 
 ## 주의
@@ -22,7 +21,7 @@ roi는 go1.13 이상의 버전에서 컴파일 하는 것을 추천합니다.
 
 ```
 cd ~
-git clone https://github.com/studio2l/roi
+git clone https://github.com/imagvfx/roi
 cd ~/roi/cmd/roi
 go build
 ```
