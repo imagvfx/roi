@@ -7,9 +7,9 @@ import (
 
 func TestUser(t *testing.T) {
 	u := &User{
-		ID:          "kybin",
-		KorName:     "김용빈",
-		Name:        "kim yongbin",
+		User:        "kybin",
+		Domain:      "",
+		DisplayName: "김용빈",
 		Team:        "rnd",
 		Role:        "평민",
 		Email:       "kybinz@gmail.com",
@@ -32,15 +32,15 @@ func TestUser(t *testing.T) {
 			t.Fatalf("could not delete site: %s", err)
 		}
 	}()
-	err = AddUser(db, u.ID, password)
+	err = AddUser(db, u.ID(), password)
 	if err != nil {
 		t.Fatalf("could not add user: %s", err)
 	}
-	err = UpdateUser(db, u.ID, u)
+	err = UpdateUser(db, u.ID(), u)
 	if err != nil {
 		t.Fatalf("could not update user: %v", err)
 	}
-	got, err := GetUser(db, u.ID)
+	got, err := GetUser(db, u.ID())
 	if err != nil {
 		t.Fatalf("could not get user: %v", err)
 	}
@@ -48,18 +48,18 @@ func TestUser(t *testing.T) {
 		t.Fatalf("user not match: got: %v, want: %v", got, u)
 	}
 	new_password := "this is not my password neither"
-	err = UpdateUserPassword(db, u.ID, new_password)
+	err = UpdateUserPassword(db, u.ID(), new_password)
 	if err != nil {
 		t.Fatalf("could not update user password: %v", err)
 	}
-	ok, err := UserPasswordMatch(db, u.ID, new_password)
+	ok, err := UserPasswordMatch(db, u.ID(), new_password)
 	if err != nil {
 		t.Fatalf("could not check user password match: %v", err)
 	}
 	if !ok {
 		t.Fatalf("user password not match: %v", err)
 	}
-	err = DeleteUser(db, u.ID)
+	err = DeleteUser(db, u.ID())
 	if err != nil {
 		t.Fatalf("could not delete user: %v", err)
 	}

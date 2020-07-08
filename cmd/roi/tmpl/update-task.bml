@@ -62,9 +62,9 @@
 ]
 
 <script> [``
-let userName = {
+let userDisplayName = {
 	{{range $u := $.Users -}}
-	"{{$u.ID}}": {{$u.Name}},
+	"{{$u.ID}}": {{$u.DisplayName}},
 	{{end}}
 }
 
@@ -75,7 +75,7 @@ let users = [
 ]
 users.sort()
 
-autocomplete(document.getElementById("autocomplete-user"), users, userName)
+autocomplete(document.getElementById("autocomplete-user"), users, userDisplayName)
 ``]
 {{template "footer"}}
 {{end}}

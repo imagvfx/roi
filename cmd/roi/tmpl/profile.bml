@@ -11,43 +11,40 @@
 	<h2> [기본 정보]
 	<form method="post" class="ui form"> [
 		<div class="chapter"> [<div class="subtitle"> [아이디]
-			<input readonly="" type="text" name="id" value="{{$.User.ID}}"/>
+			<input readonly="" type="text" name="id" value="{{$.Env.User.ID}}"/>
 		]
-		<div class="chapter"> [<div class="subtitle"> [이름]
-			<input type="text" name="kor_name" value="{{$.User.KorName}}"/>
-		]
-		<div class="chapter"> [<div class="subtitle"> [영문이름]
-			<input type="text" name="name" value="{{$.User.Name}}"/>
+		<div class="chapter"> [<div class="subtitle"> [표시할 이름]
+			<input type="text" name="display_name" value="{{$.Env.User.DisplayName}}"/>
 		]
 		<div class="chapter"> [<div class="subtitle"> [팀]
 			<select type="text" name="team"> [
-				<option value="" {{if eq $.User.Team ""}}selected{{end}}> [없음]
-				<option value="mod" {{if eq $.User.Team "mod"}}selected{{end}}> [모델링]
-				<option value="rig" {{if eq $.User.Team "rig"}}selected{{end}}> [리깅]
-				<option value="ani" {{if eq $.User.Team "ani"}}selected{{end}}> [애니메이션]
-				<option value="lit" {{if eq $.User.Team "lit"}}selected{{end}}> [라이팅]
-				<option value="fx" {{if eq $.User.Team "fx"}}selected{{end}}> [FX]
-				<option value="matte" {{if eq $.User.Team "matte"}}selected{{end}}> [매트]
-				<option value="motion" {{if eq $.User.Team "motion"}}selected{{end}}> [모션]
-				<option value="comp" {{if eq $.User.Team "comp"}}selected{{end}}> [합성]
-				<option value="sup" {{if eq $.User.Team "sup"}}selected{{end}}> [수퍼바이저]
-				<option value="pd" {{if eq $.User.Team "pd"}}selected{{end}}> [PD]
+				<option value="" {{if eq $.Env.User.Team ""}}selected{{end}}> [없음]
+				<option value="mod" {{if eq $.Env.User.Team "mod"}}selected{{end}}> [모델링]
+				<option value="rig" {{if eq $.Env.User.Team "rig"}}selected{{end}}> [리깅]
+				<option value="ani" {{if eq $.Env.User.Team "ani"}}selected{{end}}> [애니메이션]
+				<option value="lit" {{if eq $.Env.User.Team "lit"}}selected{{end}}> [라이팅]
+				<option value="fx" {{if eq $.Env.User.Team "fx"}}selected{{end}}> [FX]
+				<option value="matte" {{if eq $.Env.User.Team "matte"}}selected{{end}}> [매트]
+				<option value="motion" {{if eq $.Env.User.Team "motion"}}selected{{end}}> [모션]
+				<option value="comp" {{if eq $.Env.User.Team "comp"}}selected{{end}}> [합성]
+				<option value="sup" {{if eq $.Env.User.Team "sup"}}selected{{end}}> [수퍼바이저]
+				<option value="pd" {{if eq $.Env.User.Team "pd"}}selected{{end}}> [PD]
 			]
 		]
 		<div class="chapter"> [<div class="subtitle"> [직책]
 			<select type="text" name="position"> [
-				<option value=""{{if eq $.User.Role ""}}selected{{end}}> [없음]
-				<option value="lead" {{if eq $.User.Role "lead"}}selected{{end}}> [팀장]
+				<option value=""{{if eq $.Env.User.Role ""}}selected{{end}}> [없음]
+				<option value="lead" {{if eq $.Env.User.Role "lead"}}selected{{end}}> [팀장]
 			]
 		]
 		<div class="chapter"> [<div class="subtitle"> [이메일]
-			<input type="text" name="email" value="{{$.User.Email}}"/>
+			<input type="text" name="email" value="{{$.Env.User.Email}}"/>
 		]
 		<div class="chapter"> [<div class="subtitle"> [전화번호]
-			<input type="text" name="phone_number" value="{{$.User.PhoneNumber}}"/>
+			<input type="text" name="phone_number" value="{{$.Env.User.PhoneNumber}}"/>
 		]
 		<div class="chapter"> [<div class="subtitle"> [입사일]
-			<input type="date" name="entry_date" value="{{$.User.EntryDate}}"/>
+			<input type="date" name="entry_date" value="{{$.Env.User.EntryDate}}"/>
 		]
 
 		<button class="ui button green" type="submit" value="Submit"> [설정 저장]

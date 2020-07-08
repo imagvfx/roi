@@ -53,7 +53,7 @@ func addVersionPostHandler(w http.ResponseWriter, r *http.Request, env *Env) err
 		Unit:    unit,
 		Task:    task,
 		Version: version,
-		Owner:   env.User.ID,
+		Owner:   env.User.ID(),
 	}
 	err = roi.AddVersion(DB, v)
 	if err != nil {

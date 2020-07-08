@@ -9,7 +9,7 @@
 		<!--가입정보 입력폼-->
 		<form class="ui large form" method="post"> [
 			<div class="ui grey inverted segment"> [
-				<div class="field"> [<!--아이디 입력-->
+				<div class="field"> [<!--유저네임 입력-->
 					<div class="ui left icon input"> [
 					<i class="user icon"> []<input id="signup_id" name="id" value="" type="text" placeholder="Id" required minlength="4" maxlength="10"> []
 					]
