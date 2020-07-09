@@ -255,8 +255,8 @@ func reviewTaskPostHandler(w http.ResponseWriter, r *http.Request, env *Env) err
 		Task:    task,
 		Version: ver,
 		// 할일: 실제 리뷰어를 전달받도록 할 것.
-		Reviewer:  env.User.ID,
-		Messenger: env.User.ID,
+		Reviewer:  env.User.ID(),
+		Messenger: env.User.ID(),
 		Msg:       r.FormValue("msg"),
 		Status:    status,
 	}

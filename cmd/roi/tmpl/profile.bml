@@ -13,11 +13,8 @@
 		<div class="chapter"> [<div class="subtitle"> [아이디]
 			<input readonly="" type="text" name="id" value="{{$.User.ID}}"/>
 		]
-		<div class="chapter"> [<div class="subtitle"> [이름]
-			<input type="text" name="kor_name" value="{{$.User.KorName}}"/>
-		]
-		<div class="chapter"> [<div class="subtitle"> [영문이름]
-			<input type="text" name="name" value="{{$.User.Name}}"/>
+		<div class="chapter"> [<div class="subtitle"> [표시할 이름]
+			<input type="text" name="display_name" value="{{$.User.DisplayName}}"/>
 		]
 		<div class="chapter"> [<div class="subtitle"> [팀]
 			<select type="text" name="team"> [

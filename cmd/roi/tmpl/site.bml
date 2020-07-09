@@ -14,11 +14,11 @@
 				<div class="multi-input-add-button" onclick='appendTemplate("vfx_supervisors_g", "vfx_supervisors_t")'> [+]
 			]
 			<template id="vfx_supervisors_t"> [
-				<div class="autocomplete"><input class="suggest-user" type="text" name="vfx_supervisors" onkeydown="suggest(this)" value="" /> []
+				<div class="autocomplete"> [<input class="suggest-user" type="text" name="vfx_supervisors" onkeydown="suggest(this)" value="" /> []]
 			]
 			<div id="vfx_supervisors_g" class="multi-input"> [
 				{{range .Site.VFXSupervisors}}
-				<div class="autocomplete"><input class="suggest-user" type="text" name="vfx_supervisors" onkeydown="suggest(this)" value="{{.}}" /> []
+				<div class="autocomplete"> [<input class="suggest-user" type="text" name="vfx_supervisors" onkeydown="suggest(this)" value="{{.}}" /> []]
 				{{end}}
 			]
 		]
@@ -138,9 +138,9 @@
 <div id="main-right"> []
 ]
 <script> [``
-let userName = {
+let userDisplayName = {
 	{{range $u := $.Users -}}
-	"{{$u.ID}}": {{$u.Name}},
+	"{{$u.ID}}": {{$u.DisplayName}},
 	{{end}}
 }
 
@@ -168,7 +168,7 @@ function suggest(inp) {
 		return
 	}
 	auto[inp.id] = true
-	autocomplete(inp, users, userName)
+	autocomplete(inp, users, userDisplayName)
 }
 ``]
 {{template "footer"}}

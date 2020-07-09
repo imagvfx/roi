@@ -11,26 +11,48 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/studio2l/roi"
 )
 
 type Env struct {
 	User *roi.User
+
+	useOIDC          bool
+	oidcClientID     string
+	oidcClientSecret string
+	oidcRedirectURI  string
+	oidcHostDomain   string
 }
 
 // HandlerFunc는 이 패키지에서 사용하는 핸들 함수이다.
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, env *Env) error
 
 // handle은 이 패키지에서 사용하는 핸들 함수를 http.HandleFunc로 변경한다.
-func handle(serve HandlerFunc) http.HandlerFunc {
+func handle(serve HandlerFunc, baseEnv *Env) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		pagesBeforeLogin := []string{
+			"/login",
+			"/signup",
+			"/oidc/callback",
+		}
+		userCheck := true
+		for _, page := range pagesBeforeLogin {
+			if r.URL.Path == page || strings.HasPrefix(r.URL.Path, page+"/") {
+				userCheck = false
+				break
+			}
+		}
+		// u는 유저를 받아오지 않으면 nil이다.
+		// 따라서 env.User를 사용하기 전에는 이 값이 nil인지 확인하는 절차가 필요하다.
 		var u *roi.User
-		if !(r.URL.Path == "/login" || r.URL.Path == "/login/" || r.URL.Path == "/signup") {
+		if userCheck {
 			var err error
 			u, err = sessionUser(r)
 			if err != nil {
 				if errors.As(err, &roi.NotFoundError{}) {
+					log.Printf("authentication required to access: %s", r.URL.Path)
 					http.Redirect(w, r, "/login", http.StatusSeeOther)
 					return
 				}
@@ -39,9 +61,8 @@ func handle(serve HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
-		env := &Env{
-			User: u,
-		}
+		env := &(*baseEnv)
+		env.User = u
 		err := serve(w, r, env)
 		if err != nil {
 			handleError(w, err)
@@ -84,17 +105,17 @@ func sessionUser(r *http.Request) (*roi.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get session: %w", err)
 	}
-	user := session["userid"]
-	if user == "" {
+	id := session["userid"]
+	if id == "" {
 		return nil, roi.NotFound("user not set in session")
 	}
-	u, err := roi.GetUser(DB, user)
+	u, err := roi.GetUser(DB, id)
 	if err != nil {
 		if errors.As(err, &roi.NotFoundError{}) {
 			// 일반적으로 db에 사용자가 없는 것은 NotFound 에러를 내지만,
 			// 존재하지 않는 사용자가 세션 유저로 등록되어 있는 것은 해킹일 가능성이 높다.
 			// 로그에 남도록 Internal 에러를 내고 %v 포매팅을 사용해 NotFound 타입정보는 지운다.
-			return nil, fmt.Errorf("warn: invalid session user (malicious attack?): %s: %v", user, err)
+			return nil, fmt.Errorf("warn: invalid session user (malicious attack?): %s: %v", id, err)
 		}
 	}
 	return u, nil

@@ -1,14 +1,99 @@
 package main
 
 import (
+	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/studio2l/roi"
 )
+
+func oidcCallbackHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
+	session, err := getSession(r)
+	if err != nil {
+		clearSession(w)
+		return err
+	}
+	if r.FormValue("state") != session["state"] {
+		// 현재 가지고 있는 state가 round-trip을 통해 돌아온 state와 다르다면
+		// 중간에 요청이 변조된 것이다.
+		return roi.BadRequest("states are not matching")
+	}
+	// code는 서버가 인증 토큰을 받기 위해 사용자에게 전달된 코드로,
+	// 이를 이용해서 백엔드 채널로 안전하게 토큰을 획득한다.
+	code := r.FormValue("code")
+	if code == "" {
+		return roi.BadRequest("no code in oauth response")
+	}
+	resp, err := http.PostForm("https://oauth2.googleapis.com/token", url.Values{
+		"code":          {code},
+		"client_id":     {env.oidcClientID},
+		"client_secret": {env.oidcClientSecret},
+		"redirect_uri":  {env.oidcRedirectURI},
+		"grant_type":    {"authorization_code"},
+	})
+	if err != nil {
+		return err
+	}
+	oa := OAuth2Response{}
+	dec := json.NewDecoder(resp.Body)
+	err = dec.Decode(&oa)
+	if err != nil {
+		return err
+	}
+	part := strings.Split(oa.IDToken, ".")
+	if len(part) != 3 {
+		return fmt.Errorf("oauth id token should consist of 3 parts")
+	}
+	// jwt 토큰은 그 서명을 검증해야 하나, 이 경우 인증 서버에서 직접 받았으므로 생략한다.
+	payload, err := base64.RawURLEncoding.DecodeString(part[1])
+	if err != nil {
+		return err
+	}
+	op := OIDCPayload{}
+	dec = json.NewDecoder(bytes.NewReader(payload))
+	err = dec.Decode(&op)
+	if err != nil {
+		return err
+	}
+	// oidc 유저의 경우 id에 @이 항상 들어가므로 로컬유저와 구별된다.
+	// 비밀번호는 필요하지 않다.
+	id := op.Email // 구글 OIDC는 email 필드가 id 필드를 대신한다.
+	_, err = roi.GetUser(DB, id)
+	if err != nil {
+		if !errors.As(err, &roi.NotFoundError{}) {
+			return err
+		}
+		err := roi.AddUser(DB, id, "")
+		if err != nil {
+			return err
+		}
+	}
+	session["userid"] = id
+	err = setSession(w, session)
+	if err != nil {
+		return err
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+type OAuth2Response struct {
+	IDToken string `json:"id_token"`
+}
+
+type OIDCPayload struct {
+	Email string `json:"email"`
+}
 
 // loginHandler는 /login 페이지로 사용자가 접속했을때 로그인 페이지를 반환한다.
 func loginHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
@@ -36,13 +121,55 @@ func loginHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return nil
 	}
-	return executeTemplate(w, "login", nil)
+
+	if !env.useOIDC {
+		return executeTemplate(w, "login", struct{ UseOIDC bool }{false})
+	}
+
+	// 사이트 간 요청위조를 방지하기 위해 state를 생성한다.
+	seed := make([]byte, 1024)
+	rand.Read(seed)
+	h := sha256.New()
+	h.Write(seed)
+	state := fmt.Sprintf("%x", h.Sum(nil))
+
+	session, err := getSession(r)
+	if err != nil {
+		clearSession(w)
+		return err
+	}
+	session["state"] = state
+	setSession(w, session)
+
+	// 인증 서버에 대한 리플레이 공격을 방지하기 위한 nonce를 생성한다.
+	seed = make([]byte, 1024)
+	rand.Read(seed)
+	h = sha256.New()
+	h.Write(seed)
+	nonce := fmt.Sprintf("%x", h.Sum(nil))
+
+	recipe := struct {
+		UseOIDC         bool
+		OIDCClientID    string
+		OIDCState       string
+		OIDCRedirectURI string
+		OIDCNonce       string
+		OIDCHostDomain  string
+	}{
+		UseOIDC:         true,
+		OIDCClientID:    env.oidcClientID,
+		OIDCState:       state,
+		OIDCRedirectURI: env.oidcRedirectURI,
+		OIDCNonce:       nonce,
+		OIDCHostDomain:  env.oidcHostDomain,
+	}
+	return executeTemplate(w, "login", recipe)
 }
 
 // logoutHandler는 /logout 페이지로 사용자가 접속했을때 사용자를 로그아웃 시킨다.
 func logoutHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 	clearSession(w)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 	return nil
 }
 
@@ -55,9 +182,6 @@ func signupHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		}
 		id := r.FormValue("id")
 		pw := r.FormValue("password")
-		if len(pw) < 8 {
-			return roi.BadRequest("password too short")
-		}
 		// 할일: password에 대한 컨펌은 프론트 엔드에서 하여야 함
 		pwc := r.FormValue("password_confirm")
 		if pw != pwc {
@@ -84,15 +208,14 @@ func signupHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 func profileHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 	if r.Method == "POST" {
 		id := r.FormValue("id")
-		if env.User.ID != id {
+		if env.User.ID() != id {
 			return roi.BadRequest("not allowed to change other's profile")
 		}
 		u, err := roi.GetUser(DB, id)
 		if err != nil {
 			return err
 		}
-		u.KorName = r.FormValue("kor_name")
-		u.Name = r.FormValue("name")
+		u.DisplayName = r.FormValue("display_name")
 		u.Team = r.FormValue("team")
 		u.Role = r.FormValue("position")
 		u.Email = r.FormValue("email")
@@ -133,14 +256,14 @@ func updatePasswordHandler(w http.ResponseWriter, r *http.Request, env *Env) err
 	if newpw != newpwc {
 		return roi.BadRequest("passwords are not matched")
 	}
-	match, err := roi.UserPasswordMatch(DB, env.User.ID, oldpw)
+	match, err := roi.UserPasswordMatch(DB, env.User.ID(), oldpw)
 	if err != nil {
 		return err
 	}
 	if !match {
 		return roi.BadRequest("entered password is not correct")
 	}
-	err = roi.UpdateUserPassword(DB, env.User.ID, newpw)
+	err = roi.UpdateUserPassword(DB, env.User.ID(), newpw)
 	if err != nil {
 		return err
 	}
@@ -150,12 +273,12 @@ func updatePasswordHandler(w http.ResponseWriter, r *http.Request, env *Env) err
 
 // userHandler는 루트 페이지로 사용자가 접근했을때 그 사용자에게 필요한 정보를 맞춤식으로 제공한다.
 func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
-	user := r.URL.Path[len("/user/"):]
-	_, err := roi.GetUser(DB, user)
+	id := r.URL.Path[len("/user/"):]
+	u, err := roi.GetUser(DB, id)
 	if err != nil {
 		return err
 	}
-	tasks, err := roi.UserTasks(DB, user)
+	tasks, err := roi.UserTasks(DB, id)
 	if err != nil {
 		return err
 	}
@@ -190,7 +313,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 	})
 	taskFromID := make(map[string]*roi.Task)
 	for _, t := range tasks {
-		taskFromID[t.ID()] = t
+		taskFromID[env.User.ID()] = t
 	}
 	tasksOfDay := make(map[string][]string, 28)
 	for _, t := range tasks {
@@ -198,7 +321,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		if tasksOfDay[due] == nil {
 			tasksOfDay[due] = make([]string, 0)
 		}
-		tasksOfDay[due] = append(tasksOfDay[due], t.ID())
+		tasksOfDay[due] = append(tasksOfDay[due], env.User.ID())
 	}
 	// 앞으로 4주에 대한 태스크 정보를 보인다.
 	// 총 기간이나 단위는 추후 설정할 수 있도록 할 것.
@@ -217,7 +340,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 	}
 	recipe := struct {
 		Env           *Env
-		User          string
+		User          *roi.User
 		Timeline      []string
 		NumTasks      map[string]map[roi.Status]int
 		TaskFromID    map[string]*roi.Task
@@ -225,7 +348,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		AllTaskStatus []roi.Status
 	}{
 		Env:           env,
-		User:          user,
+		User:          u,
 		Timeline:      timeline,
 		NumTasks:      numTasks,
 		TaskFromID:    taskFromID,

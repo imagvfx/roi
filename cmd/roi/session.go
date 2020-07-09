@@ -26,11 +26,11 @@ func setSession(w http.ResponseWriter, session map[string]string) error {
 
 // getSession은 클라이언트 브라우저에 저장되어 있던 세션을 불러온다.
 func getSession(r *http.Request) (map[string]string, error) {
+	value := make(map[string]string)
 	c, _ := r.Cookie("session")
 	if c == nil {
-		return nil, nil
+		return value, nil
 	}
-	value := make(map[string]string)
 	err := cookieHandler.Decode("session", c.Value, &value)
 	if err != nil {
 		return nil, err

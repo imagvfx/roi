@@ -10,7 +10,8 @@
 ``]
 <div id="main-bg"> [
 <div id="main-left"> [
-	<h2 class="title"> [{{.Env.User.ID}}]
+	<h2 class="title"> [{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.User}}{{end}}]
+	<div> [{{.User.ID}}]
 ]
 <div id="main-page"> [
 	<div class="timeline chapter"> [

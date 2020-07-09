@@ -29,6 +29,9 @@
 		<a href="/signup"> [<button class="ui fluid large button"> [가입]]
 		<!--에러 안내 메세지 출력-->
 	]
+	{{if .UseOIDC}}
+	<a href="https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={{.OIDCClientID}}&scope=openid%20email&redirect_uri={{.OIDCRedirectURI}}&state={{.OIDCState}}&nonce={{.OIDCNonce}}&hd={{.OIDCHostDomain}}&prompt=consent"> [구글로 로그인]
+	{{end}}
 ]
 {{template "footer"}}
 {{end}}

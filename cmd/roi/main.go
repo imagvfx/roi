@@ -151,42 +151,7 @@ when ROI_DB_ADDR environment variable is not empty, it will use the value as def
 		blockKey,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", handle(rootHandler))
-	mux.HandleFunc("/login", handle(loginHandler))
-	mux.HandleFunc("/logout", handle(logoutHandler))
-	mux.HandleFunc("/settings/profile", handle(profileHandler))
-	mux.HandleFunc("/update-password", handle(updatePasswordHandler))
-	mux.HandleFunc("/signup", handle(signupHandler))
-	mux.HandleFunc("/site", handle(siteHandler))
-	mux.HandleFunc("/shows", handle(showsHandler))
-	mux.HandleFunc("/add-show", handle(addShowHandler))
-	mux.HandleFunc("/update-show", handle(updateShowHandler))
-	mux.HandleFunc("/units", handle(unitsHandler))
-	mux.HandleFunc("/add-group", handle(addGroupHandler))
-	mux.HandleFunc("/update-group", handle(updateGroupHandler))
-	mux.HandleFunc("/add-unit", handle(addUnitHandler))
-	mux.HandleFunc("/update-unit", handle(updateUnitHandler))
-	mux.HandleFunc("/update-multi-units", handle(updateMultiUnitsHandler))
-	mux.HandleFunc("/update-task", handle(updateTaskHandler))
-	mux.HandleFunc("/update-multi-tasks", handle(updateMultiTasksHandler))
-	mux.HandleFunc("/review-task", handle(reviewTaskHandler))
-	mux.HandleFunc("/add-version", handle(addVersionHandler))
-	mux.HandleFunc("/update-version", handle(updateVersionHandler))
-	mux.HandleFunc("/review/", handle(reviewHandler))
-	mux.HandleFunc("/upload-excel", handle(uploadExcelHandler))
-	mux.HandleFunc("/user/", handle(userHandler))
-	mux.HandleFunc("/users", handle(usersHandler))
-	mux.HandleFunc("/api/v1/show/add", addShowApiHandler)
-	mux.HandleFunc("/api/v1/unit/add", addUnitApiHandler)
-	mux.HandleFunc("/api/v1/unit/get", getUnitApiHandler)
-	mux.HandleFunc("/api/v1/unit-tasks/get", getUnitTasksApiHandler)
-	fs := http.FileServer(http.Dir("static"))
-	mux.Handle("/static/", http.StripPrefix("/static/", fs))
-	thumbfs := http.FileServer(http.Dir("data"))
-	mux.Handle("/data/", http.StripPrefix("/data/", thumbfs))
-
-	// Show https binding information
+	// 바인딩 주소
 	addrs := strings.Split(addr, ":")
 
 	var protocol string
@@ -221,20 +186,78 @@ when ROI_DB_ADDR environment variable is not empty, it will use the value as def
 		site = "localhost"
 	}
 
-	var addrToShow string
+	var fullAddr string
 	if insecure {
-		addrToShow = protocol + site
+		fullAddr = protocol + site
 		if httpPort != defaultHttpPort {
-			addrToShow += ":" + httpPort
+			fullAddr += ":" + httpPort
 		}
 	} else {
-		addrToShow = protocol + site
+		fullAddr = protocol + site
 		if httpsPort != defaultHttpsPort {
-			addrToShow += ":" + httpsPort
+			fullAddr += ":" + httpsPort
 		}
 	}
+
+	// OIDC
+	oidcClientID := os.Getenv("ROI_OIDC_CLIENT_ID")
+	oidcClientSecret := os.Getenv("ROI_OIDC_CLIENT_SECRET")
+	oidcRedirectURI := fullAddr + "/oidc/callback/google"
+	useOIDC := false
+	if oidcClientID != "" && oidcClientSecret != "" {
+		useOIDC = true
+	}
+
+	env := &Env{
+		useOIDC:          useOIDC,
+		oidcClientID:     oidcClientID,
+		oidcClientSecret: oidcClientSecret,
+		oidcRedirectURI:  oidcRedirectURI,
+		oidcHostDomain:   site,
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", handle(rootHandler, env))
+	// 로그인 전
+	mux.HandleFunc("/signup", handle(signupHandler, env))
+	mux.HandleFunc("/login", handle(loginHandler, env))
+	mux.HandleFunc("/logout", handle(logoutHandler, env))
+	mux.HandleFunc("/oidc/callback/google", handle(oidcCallbackHandler, env))
+	// 로그인 후
+	mux.HandleFunc("/settings/profile", handle(profileHandler, env))
+	mux.HandleFunc("/update-password", handle(updatePasswordHandler, env))
+	mux.HandleFunc("/site", handle(siteHandler, env))
+	mux.HandleFunc("/shows", handle(showsHandler, env))
+	mux.HandleFunc("/add-show", handle(addShowHandler, env))
+	mux.HandleFunc("/update-show", handle(updateShowHandler, env))
+	mux.HandleFunc("/units", handle(unitsHandler, env))
+	mux.HandleFunc("/add-group", handle(addGroupHandler, env))
+	mux.HandleFunc("/update-group", handle(updateGroupHandler, env))
+	mux.HandleFunc("/add-unit", handle(addUnitHandler, env))
+	mux.HandleFunc("/update-unit", handle(updateUnitHandler, env))
+	mux.HandleFunc("/update-multi-units", handle(updateMultiUnitsHandler, env))
+	mux.HandleFunc("/update-task", handle(updateTaskHandler, env))
+	mux.HandleFunc("/update-multi-tasks", handle(updateMultiTasksHandler, env))
+	mux.HandleFunc("/review-task", handle(reviewTaskHandler, env))
+	mux.HandleFunc("/add-version", handle(addVersionHandler, env))
+	mux.HandleFunc("/update-version", handle(updateVersionHandler, env))
+	mux.HandleFunc("/review/", handle(reviewHandler, env))
+	mux.HandleFunc("/upload-excel", handle(uploadExcelHandler, env))
+	mux.HandleFunc("/user/", handle(userHandler, env))
+	mux.HandleFunc("/users", handle(usersHandler, env))
+	// api
+	mux.HandleFunc("/api/v1/show/add", addShowApiHandler)
+	mux.HandleFunc("/api/v1/unit/add", addUnitApiHandler)
+	mux.HandleFunc("/api/v1/unit/get", getUnitApiHandler)
+	mux.HandleFunc("/api/v1/unit-tasks/get", getUnitTasksApiHandler)
+
+	fs := http.FileServer(http.Dir("static"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fs))
+	thumbfs := http.FileServer(http.Dir("data"))
+	mux.Handle("/data/", http.StripPrefix("/data/", thumbfs))
+
 	fmt.Println()
-	log.Printf("roi is start to running. see %s", addrToShow)
+	log.Printf("roi is start to running. see %s", fullAddr)
 	fmt.Println()
 
 	// Bind
