@@ -81,7 +81,7 @@
 			]
 		]
 		<div class="nav-dropdown" title="개인계정과 설정을 위한 페이지입니다."> [
-			<div class="nav-dropdown-button"> [{{$.Env.User.ID}}]
+			<div class="nav-dropdown-button"> [{{$.Env.User.DisplayUserName}}]
 			<div class="nav-dropdown-content"> [
 				<a class="nav-dropdown-item" href="/settings/profile"> [Profile]
 				<a class="nav-dropdown-item" href="/logout"> [Log-Out]

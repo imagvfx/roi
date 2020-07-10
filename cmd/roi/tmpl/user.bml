@@ -10,7 +10,7 @@
 ``]
 <div id="main-bg"> [
 <div id="main-left"> [
-	<h2 class="title"> [{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.User}}{{end}}]
+	<h2 class="title"> [{{.User.DisplayUserName}}]
 	<div> [{{.User.ID}}]
 ]
 <div id="main-page"> [

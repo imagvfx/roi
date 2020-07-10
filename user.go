@@ -46,9 +46,11 @@ var _ []interface{} = dbVals(&userInfo{})
 
 // User는 일반적인 사용자 정보이다.
 type User struct {
-	User        string `db:"username"`
-	Domain      string `db:"domain"`
-	DisplayName string `db:"display_name"`
+	// 도메인이 존재한다면 OIDC 유저, 그렇지 않다면 로컬 유저이다.
+	User   string `db:"username"`
+	Domain string `db:"domain"`
+
+	DisplayName string `db:"display_name"` // DisplayUserName 참고
 	Team        string `db:"team"`
 	Role        string `db:"role"`
 	Email       string `db:"email"`
@@ -64,6 +66,19 @@ var _ []interface{} = dbVals(&User{})
 func (u *User) ID() string {
 	if u.Domain != "" {
 		return u.User + "@" + u.Domain
+	}
+	return u.User
+}
+
+// DisplayUserName은 웹에서 표시될 사용자의 이름을 반환한다.
+//
+// DisplayName이 설정되어 있다면 그 값을 반환하고,
+// 그렇지 않다면 아이디에서 도메인을 제외한 이름을 반환한다.
+//
+// 사용자 표시에는 DisplayName를 쓰는 대신 이 값을 사용할 것.
+func (u *User) DisplayUserName() string {
+	if u.DisplayName != "" {
+		return u.DisplayName
 	}
 	return u.User
 }
