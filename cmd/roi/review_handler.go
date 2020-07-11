@@ -21,7 +21,7 @@ func reviewHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		}
 		return executeTemplate(w, "no-shows", recipe)
 	}
-	cfg, err := roi.GetUserConfig(DB, env.User.ID())
+	cfg, err := roi.GetUserConfig(DB, env.User.ID)
 	if err != nil {
 		return err
 	}

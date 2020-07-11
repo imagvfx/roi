@@ -11,6 +11,6 @@ func rootHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		http.Error(w, "page not found", http.StatusNotFound)
 		return nil
 	}
-	http.Redirect(w, r, "/user/"+env.User.ID(), http.StatusSeeOther)
+	http.Redirect(w, r, "/user/"+env.User.ID, http.StatusSeeOther)
 	return nil
 }

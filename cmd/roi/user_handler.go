@@ -208,7 +208,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 func profileHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 	if r.Method == "POST" {
 		id := r.FormValue("id")
-		if env.User.ID() != id {
+		if env.User.ID != id {
 			return roi.BadRequest("not allowed to change other's profile")
 		}
 		u, err := roi.GetUser(DB, id)
@@ -256,14 +256,14 @@ func updatePasswordHandler(w http.ResponseWriter, r *http.Request, env *Env) err
 	if newpw != newpwc {
 		return roi.BadRequest("passwords are not matched")
 	}
-	match, err := roi.UserPasswordMatch(DB, env.User.ID(), oldpw)
+	match, err := roi.UserPasswordMatch(DB, env.User.ID, oldpw)
 	if err != nil {
 		return err
 	}
 	if !match {
 		return roi.BadRequest("entered password is not correct")
 	}
-	err = roi.UpdateUserPassword(DB, env.User.ID(), newpw)
+	err = roi.UpdateUserPassword(DB, env.User.ID, newpw)
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 	})
 	taskFromID := make(map[string]*roi.Task)
 	for _, t := range tasks {
-		taskFromID[env.User.ID()] = t
+		taskFromID[env.User.ID] = t
 	}
 	tasksOfDay := make(map[string][]string, 28)
 	for _, t := range tasks {
@@ -321,7 +321,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		if tasksOfDay[due] == nil {
 			tasksOfDay[due] = make([]string, 0)
 		}
-		tasksOfDay[due] = append(tasksOfDay[due], env.User.ID())
+		tasksOfDay[due] = append(tasksOfDay[due], env.User.ID)
 	}
 	// 앞으로 4주에 대한 태스크 정보를 보인다.
 	// 총 기간이나 단위는 추후 설정할 수 있도록 할 것.

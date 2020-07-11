@@ -13,7 +13,7 @@ func addUnitHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		return addUnitPostHandler(w, r, env)
 	}
 	w.Header().Set("Cache-control", "no-cache")
-	cfg, err := roi.GetUserConfig(DB, env.User.ID())
+	cfg, err := roi.GetUserConfig(DB, env.User.ID)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func addUnitHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		return err
 	}
 	cfg.CurrentShow = id
-	err = roi.UpdateUserConfig(DB, env.User.ID(), cfg)
+	err = roi.UpdateUserState(DB, env.User.ID, cfg)
 	if err != nil {
 		return err
 	}

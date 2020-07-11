@@ -116,96 +116,114 @@ func dbExec(db *sql.DB, stmts []dbStatement) error {
 }
 
 // dbKeys는 임의의 타입인 v에 대해서 그 db 키 슬라이스를 반환한다.
-func dbKeys(v interface{}) []string {
-	var typ reflect.Type
-	var field reflect.StructField
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
-		// 포인터에서 스트럭트로
-		rv = rv.Elem()
-	}
-	if rv.Kind() != reflect.Struct {
-		panic("only accept struct")
-	}
-	typ = rv.Type()
-	n := typ.NumField()
-	keys := make([]string, n)
-	for i := 0; i < n; i++ {
-		field = typ.Field(i)
-		key := field.Tag.Get("db")
-		if key == "" {
-			panic("no db tag value in struct")
+func dbKeys(vs ...interface{}) []string {
+	allKeys := make([]string, 0)
+	for _, v := range vs {
+		var typ reflect.Type
+		var field reflect.StructField
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Ptr {
+			// 포인터에서 스트럭트로
+			rv = rv.Elem()
 		}
-		keys[i] = key
+		if rv.Kind() != reflect.Struct {
+			panic("only accept struct")
+		}
+		typ = rv.Type()
+		n := typ.NumField()
+		keys := make([]string, n)
+		for i := 0; i < n; i++ {
+			field = typ.Field(i)
+			key := field.Tag.Get("db")
+			if key == "" {
+				panic("no db tag value in struct")
+			}
+			keys[i] = key
+		}
+		allKeys = append(allKeys, keys...)
 	}
-	return keys
+	return allKeys
 }
 
 // dbVals는 임의의 타입인 v에 대해서 그 값 슬라이스를 반환한다.
 // 참고: dbValues는 nil 슬라이스를 빈 슬라이스로 변경한다.
-func dbVals(v interface{}) []interface{} {
-	var field reflect.Value
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
-		// 포인터에서 스트럭트로
-		rv = rv.Elem()
-	}
-	if rv.Kind() != reflect.Struct {
-		panic("only accept struct")
-	}
-	n := rv.NumField()
-	vals := make([]interface{}, n)
-	for i := 0; i < n; i++ {
-		field = rv.Field(i)
-		fv := field.Interface()
-		if field.Kind() == reflect.Slice {
-			// 현재로써는 임의의 슬라이스를 DB에 넣을때 pq.Array의 힘을 빌린다.
-			if field.IsNil() {
-				// roi는 DB에 nil을 사용하지 않는다.
-				fv = pq.Array(reflect.MakeSlice(field.Type(), 0, 0).Interface())
-			} else {
-				fv = pq.Array(field.Interface())
-			}
+func dbVals(vs ...interface{}) []interface{} {
+	allVals := make([]interface{}, 0)
+	for _, v := range vs {
+		var field reflect.Value
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Ptr {
+			// 포인터에서 스트럭트로
+			rv = rv.Elem()
 		}
-		vals[i] = fv
+		if rv.Kind() != reflect.Struct {
+			panic("only accept struct")
+		}
+		n := rv.NumField()
+		vals := make([]interface{}, n)
+		for i := 0; i < n; i++ {
+			field = rv.Field(i)
+			fv := field.Interface()
+			if field.Kind() == reflect.Slice {
+				// 현재로써는 임의의 슬라이스를 DB에 넣을때 pq.Array의 힘을 빌린다.
+				if field.IsNil() {
+					// roi는 DB에 nil을 사용하지 않는다.
+					fv = pq.Array(reflect.MakeSlice(field.Type(), 0, 0).Interface())
+				} else {
+					fv = pq.Array(field.Interface())
+				}
+			}
+			vals[i] = fv
+		}
+		allVals = append(allVals, vals...)
 	}
-	return vals
+	return allVals
 }
 
 // dbAddrs는 임의의 타입인 v에 대해서 그 멤버들의 포인터 슬라이스를 반환한다.
-func dbAddrs(v interface{}) []interface{} {
-	var field reflect.Value
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
-		// 포인터에서 스트럭트로
-		rv = rv.Elem()
-	}
-	if rv.Kind() != reflect.Struct {
-		panic("only accept struct")
-	}
-	n := rv.NumField()
-	addrs := make([]interface{}, n)
-	for i := 0; i < n; i++ {
-		field = rv.Field(i)
-		fv := field.Addr().Interface()
-		if field.Kind() == reflect.Slice {
-			fv = pq.Array(fv)
+func dbAddrs(vs ...interface{}) []interface{} {
+	allAddrs := make([]interface{}, 0)
+	for _, v := range vs {
+		var field reflect.Value
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Ptr {
+			// 포인터에서 스트럭트로
+			rv = rv.Elem()
 		}
-		addrs[i] = fv
+		if rv.Kind() != reflect.Struct {
+			panic("only accept struct")
+		}
+		n := rv.NumField()
+		addrs := make([]interface{}, n)
+		for i := 0; i < n; i++ {
+			field = rv.Field(i)
+			fv := field.Addr().Interface()
+			if field.Kind() == reflect.Slice {
+				fv = pq.Array(fv)
+			}
+			addrs[i] = fv
+		}
+		allAddrs = append(allAddrs, addrs...)
 	}
-	return addrs
+	return allAddrs
 }
 
 // dbIdxs는 임의의 타입인 v에 대해서 그 인덱스 슬라이스를 반환한다.
 // 참고: 이 함수가 효율적이진 않지만 프로그램 시작시에 항목당 한번만
 // 실행되기 때문에 문제가 되진 않는다.
-func dbIdxs(v interface{}) []string {
-	keys := dbKeys(v)
-	idxs := make([]string, len(keys))
-	for i := range keys {
-		idxs[i] = "$" + strconv.Itoa(i+1)
+func dbIdxs(vs ...interface{}) []string {
+	allIdxs := make([]string, 0)
+	j := 1
+	for _, v := range vs {
+		keys := dbKeys(v)
+		idxs := make([]string, len(keys))
+		for i := range keys {
+			idxs[i] = "$" + strconv.Itoa(j)
+			j++
+		}
+		allIdxs = append(allIdxs, idxs...)
 	}
-	return idxs
+	return allIdxs
 }
 
 // scanner는 sql.Row 또는 sql.Rows이다.
@@ -214,9 +232,12 @@ type scanner interface {
 }
 
 // scan은 scanner에서 다음 열을 검색해 그 정보를 스트럭트인 v의 각 필드에 넣어준다.
-// 만일 v가 스트럭트가 아니거나 스캔중 문제가 생겼다면 에러를 반환한다.
-func scan(s scanner, v interface{}) error {
-	addrs := dbAddrs(v)
+// 만일 여러 스트럭트가 인수로 전달되었다면 전달된 순서대로 값이 들어가게 된다.
+func scan(s scanner, vs ...interface{}) error {
+	addrs := make([]interface{}, 0)
+	for _, v := range vs {
+		addrs = append(addrs, dbAddrs(v)...)
+	}
 	return s.Scan(addrs...)
 }
 

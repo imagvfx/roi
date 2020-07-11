@@ -44,6 +44,7 @@ func parseTemplate() {
 		"sub":                 func(a, b int) int { return a - b },
 		"fieldJoin":           fieldJoin,
 		"spaceJoin":           func(words []string) string { return strings.Join(words, " ") },
+		"idJoin":              func(words ...string) string { return strings.Join(words, "/") },
 		"versionPreviewFiles": versionPreviewFiles,
 		"basename":            filepath.Base,
 	}

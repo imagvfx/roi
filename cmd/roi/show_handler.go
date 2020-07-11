@@ -88,12 +88,12 @@ func addShowPostHandler(w http.ResponseWriter, r *http.Request, env *Env) error 
 	if err != nil {
 		return err
 	}
-	cfg, err := roi.GetUserConfig(DB, env.User.ID())
+	cfg, err := roi.GetUserConfig(DB, env.User.ID)
 	if err != nil {
 		return err
 	}
 	cfg.CurrentShow = id
-	roi.UpdateUserConfig(DB, env.User.ID(), cfg)
+	roi.UpdateUserState(DB, env.User.ID, cfg)
 	http.Redirect(w, r, "/update-show?id="+id, http.StatusSeeOther)
 	return nil
 }

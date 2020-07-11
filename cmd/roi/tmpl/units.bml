@@ -59,12 +59,12 @@
 ]
 <div id="main-page"> [
 <!--검색 결과-->
-{{range $s := .Units}}
-<div class="unit" id="{{$s.ID}}"> [
+{{range $u := .Units}}
+<div class="unit" id="{{$u.ID}}"> [
 	<div class="unit-head" style="height:20px;display:flex;align-items:end;margin-bottom:4px;font-size:15px;"> [
 		<div class="ui" style="width:288px;margin-right:22px;display:flex;align-items:end;"> [
 				<div style="display:flex;flex-direction:column;"> [
-					<a href="/update-unit?id={{$s.ID}}" style="font-size:1.3rem;color:white;border-bottom:solid 1px var(--{{.Status.UIColor}});"> [
+					<a href="/update-unit?id={{$u.ID}}" style="font-size:1.3rem;color:white;border-bottom:solid 1px var(--{{.Status.UIColor}});"> [
 						<b> [{{.Group}}/{{.Unit}}]
 					]
 				]
@@ -75,18 +75,19 @@
 	]
 	<div class="unit-main" style="display:flex;margin-bottom:6px;"> [
 		<div style="margin-right:22px;"> [
-			{{if hasThumbnail $s.ID}}
-			<img class="thumbnail" style="width:288px;height:162px;" src="{{if hasThumbnail $s.ID}}/data/show/{{$s.ID}}/thumbnail.png{{end}}" onclick="selectUnit(this)" />
+			{{if hasThumbnail $u.ID}}
+			<img class="thumbnail" style="width:288px;height:162px;" src="{{if hasThumbnail $u.ID}}/data/show/{{$u.ID}}/thumbnail.png{{end}}" onclick="selectUnit(this)" />
 			{{else}}
 			<div class="thumbnail" style="box-sizing:border-box;width:288px;height:162px;color:#444444;background-color:#BBBBBB;font-size:12px;padding:4px;"  onclick="selectUnit(this)"> [{{.Description}}]
 			{{end}}
 		]
 		<div class="tasks"> [
-			{{range $i, $t := .Tasks}}
-			{{with index (index $.Tasks $s.Unit) $t}}
+			{{range $i, $t := $u.Tasks}}
+			{{with index $.Tasks (idJoin $u.ID $t)}}
+			{{$us := index $.Assignees .Assignee}}
 			<div class="task"> [
 				<div> [<a href="/update-task?id={{.ID}}" style="font-size:1.05rem;color:white;flex:1;">[{{.Task}}]]
-				<div> [<a href="/user/{{.Assignee}}" style="color:inherit">[{{.Assignee}}]]
+				<div> [<a href="/user/{{$us.ID}}" style="color:inherit">[{{$us.DisplayUserName}}]]
 				<div style="display:flex"> [
 					{{$i := 0}}
 					{{if .PublishVersion}}
@@ -121,7 +122,7 @@
 		]
 		<div class="unit-links"> [
 			{{if ne (len .Assets) 0 -}}
-			<a class="ui mini label" style="background-color:#977;color:white;" href="/units?show={{$s.Show}}&q={{spaceJoin .Assets}}"> [애셋 ({{fieldJoin .Assets}})]
+			<a class="ui mini label" style="background-color:#977;color:white;" href="/units?show={{$u.Show}}&q={{spaceJoin .Assets}}"> [애셋 ({{fieldJoin .Assets}})]
 			{{- end -}}
 			{{- range $i, $v := .Tags -}}
 			{{if ne $i 0}}{{end}}<a class="ui grey mini label" href="/units?q=tag%3A{{$v}}">{{$v}}</a>

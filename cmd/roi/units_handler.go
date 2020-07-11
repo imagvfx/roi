@@ -22,7 +22,7 @@ func unitsHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		}
 		return executeTemplate(w, "no-shows", recipe)
 	}
-	cfg, err := roi.GetUserConfig(DB, env.User.ID())
+	cfg, err := roi.GetUserConfig(DB, env.User.ID)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func unitsHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		return err
 	}
 	cfg.CurrentShow = show
-	err = roi.UpdateUserConfig(DB, env.User.ID(), cfg)
+	err = roi.UpdateUserState(DB, env.User.ID, cfg)
 	if err != nil {
 		return err
 	}
@@ -103,21 +103,9 @@ func unitsHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		t, _ := timeFromString(s)
 		return t
 	}
-	ss, err := roi.SearchUnits(DB, show, grps, shots, f["tag"], f["status"], f["task"], f["assignee"], f["task-status"], toTime(f["due"]))
+	unitmap, taskmap, usermap, err := roi.SearchUnits(DB, show, grps, shots, f["tag"], f["status"], f["task"], f["assignee"], f["task-status"], toTime(f["due"]))
 	if err != nil {
 		return err
-	}
-	tasks := make(map[string]map[string]*roi.Task)
-	for _, s := range ss {
-		ts, err := roi.UnitTasks(DB, s.Show, s.Group, s.Unit)
-		if err != nil {
-			return err
-		}
-		tm := make(map[string]*roi.Task)
-		for _, t := range ts {
-			tm[t.Task] = t
-		}
-		tasks[s.Unit] = tm
 	}
 	site, err := roi.GetSite(DB)
 	if err != nil {
@@ -128,9 +116,10 @@ func unitsHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		Site          *roi.Site
 		Shows         []*roi.Show
 		Show          string
-		Units         []*roi.Unit
+		Units         map[string]*roi.Unit
 		AllUnitStatus []roi.Status
-		Tasks         map[string]map[string]*roi.Task
+		Tasks         map[string]*roi.Task
+		Assignees     map[string]*roi.Assignee
 		AllTaskStatus []roi.Status
 		Query         string
 	}{
@@ -138,10 +127,11 @@ func unitsHandler(w http.ResponseWriter, r *http.Request, env *Env) error {
 		Site:          site,
 		Shows:         shows,
 		Show:          show,
-		Units:         ss,
+		Units:         unitmap,
 		AllUnitStatus: roi.AllUnitStatus,
-		Tasks:         tasks,
+		Tasks:         taskmap,
 		AllTaskStatus: roi.AllTaskStatus,
+		Assignees:     usermap,
 		Query:         query,
 	}
 	return executeTemplate(w, "units", recipe)

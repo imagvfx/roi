@@ -305,26 +305,58 @@ func GetUnit(db *sql.DB, show, grp, unit string) (*Unit, error) {
 	return s, err
 }
 
+// Assignee를 쿼리에서만 사용할 지 현재처럼 SearchUnit의 반환형으로
+// 사용할지에 대해서 아직 고민중이다.
+type Assignee struct {
+	User        sql.NullString `db:"username"`
+	Domain      sql.NullString `db:"domain"`
+	DisplayName sql.NullString `db:"display_name"`
+}
+
+func (a *Assignee) ID() string {
+	if !a.User.Valid {
+		return ""
+	}
+	if a.Domain.String != "" {
+		return a.User.String + "@" + a.Domain.String
+	}
+	return a.User.String
+}
+
+func (a *Assignee) DisplayUserName() string {
+	if !a.User.Valid {
+		return ""
+	}
+	if a.DisplayName.String != "" {
+		return a.DisplayName.String
+	}
+	return a.User.String
+}
+
 // SearchUnits는 db의 특정 프로젝트에서 검색 조건에 맞는 샷 리스트를 반환한다.
-func SearchUnits(db *sql.DB, show string, grps, units []string, tag, status, task, assignee, task_status string, task_due_date time.Time) ([]*Unit, error) {
+func SearchUnits(db *sql.DB, show string, grps, units []string, tag, status, task, assignee, task_status string, task_due_date time.Time) (map[string]*Unit, map[string]*Task, map[string]*Assignee, error) {
 	keys := ""
 	for i, k := range dbKeys(&Unit{}) {
 		if i != 0 {
 			keys += ", "
 		}
-		// 태스크에 있는 정보를 찾기 위해 JOIN 해야 할 경우가 있기 때문에
-		// units. 을 붙인다.
-		keys += "units." + k
+		keys += "u." + k
+	}
+	for _, k := range dbKeys(&Task{}) {
+		keys += ", " + "t." + k
+	}
+	for _, k := range dbKeys(&Assignee{}) {
+		keys += ", " + "us." + k
 	}
 	where := make([]string, 0)
 	vals := make([]interface{}, 0)
 	i := 1 // 인덱스가 1부터 시작이다.
-	stmt := fmt.Sprintf("SELECT %s FROM units", keys)
-	where = append(where, fmt.Sprintf("units.show=$%d", i))
+	stmt := fmt.Sprintf("SELECT %s FROM units AS u LEFT JOIN tasks AS t ON u.show = t.show AND u.grp = t.grp AND u.unit = t.unit LEFT JOIN users AS us ON t.assignee = us.id", keys)
+	where = append(where, fmt.Sprintf("u.show=$%d", i))
 	vals = append(vals, show)
 	i++
 	if len(grps) != 0 {
-		whereGroups := "units.grp IN ("
+		whereGroups := "u.grp IN ("
 		j := 0
 		for _, grp := range grps {
 			if grp == "" {
@@ -358,11 +390,11 @@ func SearchUnits(db *sql.DB, show string, grps, units []string, tag, status, tas
 				unit = tok[1]
 			}
 			if grp != "" {
-				whereUnits += fmt.Sprintf("(units.grp=$%d AND units.unit=$%d)", i, i+1)
+				whereUnits += fmt.Sprintf("(u.grp=$%d AND u.unit=$%d)", i, i+1)
 				vals = append(vals, grp, unit)
 				i += 2
 			} else {
-				whereUnits += fmt.Sprintf("units.unit=$%d", i)
+				whereUnits += fmt.Sprintf("u.unit=$%d", i)
 				vals = append(vals, unit)
 				i++
 			}
@@ -372,35 +404,33 @@ func SearchUnits(db *sql.DB, show string, grps, units []string, tag, status, tas
 		where = append(where, whereUnits)
 	}
 	if tag != "" {
-		where = append(where, fmt.Sprintf("$%d::string = ANY(units.tags)", i))
+		where = append(where, fmt.Sprintf("$%d::string = ANY(u.tags)", i))
 		vals = append(vals, tag)
 		i++
 	}
 	if status != "" {
-		where = append(where, fmt.Sprintf("units.status=$%d", i))
+		where = append(where, fmt.Sprintf("u.status=$%d", i))
 		vals = append(vals, status)
 		i++
 	}
 	if task != "" {
-		where = append(where, fmt.Sprintf("$%d::string = ANY(units.tasks)", i))
+		where = append(where, fmt.Sprintf("$%d::string = ANY(u.tasks)", i))
 		vals = append(vals, task)
 		i++
 	}
-	if assignee != "" || task_status != "" || !task_due_date.IsZero() {
-		stmt += " JOIN tasks ON (tasks.show = units.show AND tasks.unit = units.unit)"
-	}
+	// 태스크
 	if assignee != "" {
-		where = append(where, fmt.Sprintf("tasks.assignee=$%d", i))
+		where = append(where, fmt.Sprintf("t.assignee=$%d", i))
 		vals = append(vals, assignee)
 		i++
 	}
 	if task_status != "" {
-		where = append(where, fmt.Sprintf("tasks.status=$%d", i))
+		where = append(where, fmt.Sprintf("t.status=$%d", i))
 		vals = append(vals, task_status)
 		i++
 	}
 	if !task_due_date.IsZero() {
-		where = append(where, fmt.Sprintf("tasks.due_date=$%d", i))
+		where = append(where, fmt.Sprintf("t.due_date=$%d", i))
 		vals = append(vals, task_due_date)
 		i++
 	}
@@ -409,35 +439,37 @@ func SearchUnits(db *sql.DB, show string, grps, units []string, tag, status, tas
 		stmt += " WHERE " + wherestr
 	}
 	st := dbStmt(stmt, vals...)
-	ss := make([]*Unit, 0)
-	hasUnit := make(map[string]bool)
+	unitmap := make(map[string]*Unit)
+	taskmap := make(map[string]*Task)
+	usermap := make(map[string]*Assignee)
+
 	err := dbQuery(db, st, func(rows *sql.Rows) error {
 		// 태스크 검색을 해 JOIN이 되면 샷이 중복으로 추가될 수 있다.
 		// DISTINCT를 이용해 문제를 해결하려고 했으나 DB가 꺼진다.
 		// 우선은 여기서 걸러낸다.
-		s := &Unit{}
-		err := scan(rows, s)
+		u := &Unit{}
+		t := &Task{}
+		us := &Assignee{}
+		err := scan(rows, u, t, us)
 		if err != nil {
 			return err
 		}
-		if !hasUnit[s.Group+"/"+s.Unit] {
-			hasUnit[s.Group+"/"+s.Unit] = true
-			ss = append(ss, s)
+		if _, ok := unitmap[u.ID()]; !ok {
+			unitmap[u.ID()] = u
+		}
+		if _, ok := taskmap[t.ID()]; !ok {
+			taskmap[t.ID()] = t
+		}
+		// 태스크에 담당자가 할당되지 않았더라도 빈 유저로 할당한다.
+		if _, ok := usermap[us.ID()]; !ok {
+			usermap[us.ID()] = us
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("search units: %s: %w", st, err)
+		return nil, nil, nil, fmt.Errorf("search units: %w", err)
 	}
-	sort.Slice(ss, func(i int, j int) bool {
-		if ss[i].Group < ss[j].Group {
-			return true
-		} else if ss[i].Group > ss[j].Group {
-			return false
-		}
-		return ss[i].Unit <= ss[j].Unit
-	})
-	return ss, nil
+	return unitmap, taskmap, usermap, nil
 }
 
 // UpdateUnit은 db에서 해당 샷을 수정한다.

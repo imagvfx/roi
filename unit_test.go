@@ -61,7 +61,11 @@ var testUnitC = &Unit{
 	},
 }
 
-var testUnits = []*Unit{testUnitA, testUnitB, testUnitC}
+var testUnits = map[string]*Unit{
+	testUnitA.ID(): testUnitA,
+	testUnitB.ID(): testUnitB,
+	testUnitC.ID(): testUnitC,
+}
 
 func TestUnit(t *testing.T) {
 	want := testUnits
@@ -118,7 +122,7 @@ func TestUnit(t *testing.T) {
 		}
 	}
 
-	got, err := SearchUnits(db, testShow.Show, []string{}, []string{}, "", "", "", "", "", time.Time{})
+	got, _, _, err := SearchUnits(db, testShow.Show, []string{}, []string{}, "", "", "", "", "", time.Time{})
 	if err != nil {
 		t.Fatalf("could not search units from units table: %s", err)
 	}
@@ -129,19 +133,24 @@ func TestUnit(t *testing.T) {
 		t.Fatalf("got: %v, want: %v", got, want)
 	}
 
-	got, err = SearchUnits(db, testShow.Show, []string{"CG"}, []string{"0010"}, "", "", "", "", "", time.Time{})
+	got, _, _, err = SearchUnits(db, testShow.Show, []string{"CG"}, []string{"0010"}, "", "", "", "", "", time.Time{})
 	if err != nil {
 		t.Fatalf("could not search units from units table: %s", err)
 	}
-	want = []*Unit{testUnitA}
+	want = map[string]*Unit{
+		testUnitA.ID(): testUnitA,
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got: %v, want: %v", got, want)
 	}
-	got, err = SearchUnits(db, testShow.Show, []string{}, []string{}, "로이", "", "", "", "", time.Time{})
+	got, _, _, err = SearchUnits(db, testShow.Show, []string{}, []string{}, "로이", "", "", "", "", time.Time{})
 	if err != nil {
 		t.Fatalf("could not search units from units table: %s", err)
 	}
-	want = []*Unit{testUnitA, testUnitB}
+	want = map[string]*Unit{
+		testUnitA.ID(): testUnitA,
+		testUnitB.ID(): testUnitB,
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got: %v, want: %v", got, want)
 	}
