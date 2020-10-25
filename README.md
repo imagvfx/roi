@@ -64,20 +64,22 @@ sudo ./roi -insecure
 
 이제 http://localhost 페이지를 살펴보세요.
 
+
 ### 자가서명인증서 (Self-Signed Certificate) 생성
 
 https 프로토콜을 사용하고 싶으나, 비용 또는 여타 문제로
-인증서 구매/발급이 어려울 때 자가서명인증서를 사용하는 경우가 있습니다.
-
-이 때 제가 추천하는 프로그램은 mkcert 입니다.
-
-mkcert는 [여기](https://github.com/FiloSottile/mkcert)서 받을수 있습니다.
+인증서 구매/발급이 어려울 때 자가서명인증서를 사용해야만 합니다.
 
 ```
-cd ~/roi/cmd/roi/cert
-mkcert -install
-mkcert -cert-file=cert.pem -key-file=key.pem localhost
+cd ~/roi/cmd/roi
+gen-self-signed-cert.sh
 ```
+
+이 인증서는 온전한 것이 아니고 사용하는 동안에는 브라우저에서 접근시
+경고가 표시되니 개발 중 임시로만 사용하셔야 합니다.
+
+호스트를 가지고 있다면 Let's Encrypt 등의 사이트에서 인증을 받으시길 추천합니다.
+
 
 ### https 프로토콜 사용
 
